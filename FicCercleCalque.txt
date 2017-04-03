@@ -1,3 +1,0 @@
-Cart_LcadC1;154,667;65;4,5
-Cart_LcadC2;70;36;3
-Cart_LcadC3;70;36;1,5

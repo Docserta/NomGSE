@@ -1,7 +1,0 @@
-Cart_Issue1;90;-20;10;-20;VVVV
-Cart_Issue3;74;-34;10;-34;VVVV
-Cart_Issue7;74;-27;10;-27;VVVV
-Cart_Issue4;90;-40;90;-20;VVVV
-Cart_Issue5;74;-40;74;-20;VVVV
-Cart_Issue6;10;-40;10;-20;VVVV
-Cart_Issue2;90;-40;10;-40;VVVV
