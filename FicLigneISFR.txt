@@ -1,0 +1,6 @@
+Cart_Issue1;89;-25;11;-25;VVVV
+Cart_Issue2;89;-40;11;-40;VVVV
+Cart_Issue3;74;-32,5;11;-32,5;VVVV
+Cart_Issue4;89;-40;89;-25;VVVV
+Cart_Issue5;74;-40;74;-25;VVVV
+Cart_Issue6;11;-40;11;-25;VVVV
