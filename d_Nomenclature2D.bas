@@ -27,6 +27,8 @@ Sub catmain()
 ' *     Prise en compte du site Airbus pour formatage des N° de planche (2 ou 3 digit)
 ' * Modification le : 21/09/16
 ' *     Suppression du dito "WELDING_NOTE" s'il est déja présent
+' * Modification le : 18/05/17
+' *     Ajout nombre de planche total sur planche 1
 ' *****************************************************************
 
 On Error GoTo Err_Nomenclature2D
@@ -64,7 +66,7 @@ End If
     Set Col_CalquesDrawActif = ActiveDrawingDoc.Sheets
     
     Dim ActiveDrawingCalque As DrawingSheet, DrawingCalqueDet As DrawingSheet
-    Set ActiveDrawingCalque = ActiveDrawingDoc.Sheets.ActiveSheet
+    Set ActiveDrawingCalque = ActiveDrawingDoc.Sheets.activeSheet
     
     Dim ActiveDrawingVues As DrawingViews
     Set ActiveDrawingVues = ActiveDrawingCalque.Views
@@ -187,15 +189,34 @@ Dim ListCageCode() As String
 Dim i As Long, j As Integer
 Dim TmpTypeEl As Integer
 Dim ParametresProduct As Parameters
+Dim ProductGenParams As Parameters
+Dim Param_PG_PresCaisse As StrParam
+Dim Param_PG_NoCaisse As StrParam
+Dim Param_PresUserGuide As StrParam
 Dim NomProductGen As String, Tmp_SiteAB As String, Tmp_MecanoSoude As String, TypeNum As String
 Dim NotaSymExiste As Boolean
 Dim NotaSoudExiste As Boolean
-
-Set Coll_Documents = CATIA.Documents
-Set ProductDoc = Coll_Documents.Item(ListProd(0))
-Set TNP_Product = ProductDoc.Product
-ReDim ListParamProd(UBound(ListProd), 3)
-
+Dim objexcel
+Dim objWorkBook
+Dim TablNomProduct() As String 'Tableau de la nomenclature complète avant tracé dans le 2D
+Dim TableCompile() As String 'Compilation des lignes des différents ensembles (sym ou  variantes)
+Dim LigneNomTempo As String
+Dim Boucle As Integer
+Dim LigActive As Integer, NoEndNom  As Integer
+Dim NbColPlus As Integer 'Nombre d'ensembles pour calcul du décallage de colonne
+Dim NoSheetEG As String 'N0 de planche de l'ensemble gégnéral
+Dim NoTotSheet As String 'Nombre de planches totale
+Dim Coll_Tables As DrawingTables 'Tableau de nomenclature dans le drawing
+    
+    'Initialisation des variables
+    Set Coll_Documents = CATIA.Documents
+    Set ProductDoc = Coll_Documents.Item(ListProd(0))
+    Set TNP_Product = ProductDoc.Product
+    ReDim ListParamProd(UBound(ListProd), 3)
+    Boucle = 0
+    NoEndNom = 0
+    LigActive = 1
+    
 'Récupération des paramètres du Product sélectionné par l'utilisateur
     Set ParametresProduct = TNP_Product.UserRefProperties
       
@@ -205,11 +226,7 @@ ReDim ListParamProd(UBound(ListProd), 3)
     Tmp_SiteAB = RecupParam(ParametresProduct, "NomPulsGSE_SiteAB")  'Site_AB
     Tmp_MecanoSoude = RecupParam(ParametresProduct, "NomPulsGSE_MecanoSoude")  'MecanoSoude
     TypeNum = RecupParam(ParametresProduct, "NomPulsGSE_TypeNum")
-    
-'    ListParamProd(0, 0) = ParametresProduct.Name
-'    ListParamProd(0, 1) = RecupParam(ParametresProduct, "NomPulsGSE_Sheet") 'sheet
-'    ListParamProd(0, 2) = SautLigne(TNP_Product.DescriptionRef)  'Description
-'    ListParamProd(0, 3) = RecupParam(ParametresProduct, "NomPulsGSE_Weight") 'sheet
+    NoSheetEG = RecupParam(ParametresProduct, "NomPulsGSE_Sheet")  'Sheet
     
 'Récupération du product général
     Set ProductGenDoc = Coll_Documents.Item(NomProductGen)
@@ -292,38 +309,23 @@ ReDim ListParamProd(UBound(ListProd), 3)
     assemblyConvertor1.[Print] "XLS", CStr(CheminDestNomenclature & ProductGenProd.Name & ".xls"), ProductGenProd
 
 'On Error GoTo ErrTraceNom2DProduct
-'Tableau de la nomenclature complète avant tracé dans le 2D
-    Dim TablNomProduct() As String
-    Dim LigneNomTempo As String
-    Dim Boucle As Integer
-    Boucle = 0
-    
-'Creation d'un objet eXcel et ouverture de la nomenclature précédement générée
-    Dim objexcel
-    Dim objWorkBook
+  
+    'Creation d'un objet eXcel et ouverture de la nomenclature précédement générée
     Set objexcel = CreateObject("EXCEL.APPLICATION")
     Set objWorkBook = objexcel.Workbooks.Open(CStr(CheminDestNomenclature & ProductGenProd.Name & ".xls"))
     objexcel.Visible = True
-    objWorkBook.ActiveSheet.Visible = True
+    objWorkBook.activeSheet.Visible = True
 
-'Pointage sur la premiere ligne des composants du product a analyser
-    Dim LigActive As Integer, NoEndNom  As Integer
-    NoEndNom = 0
-    LigActive = 1
-
-'Compilation des lignes des différents ensembles (sym ou  variantes)
-    Dim TableCompile() As String
+    'Compilation des lignes des différents ensembles (sym ou  variantes)
     TableCompile = CompileNom(objWorkBook, ListProd, True, Tmp_MecanoSoude, Tmp_SiteAB)
 
-'Nombre d'ensembles pour calcul du décallage de colonne
-    Dim NbColPlus As Integer
+    'Nombre d'ensembles pour calcul du décallage de colonne
     NbColPlus = UBound(TableCompile, 1) - 9
 
-'Stockage du N0 de planche de l'ensemble gégnéral
-    Dim TNP_NoSheet As String
-    TNP_NoSheet = RecupParam(ParametresProduct, "NomPulsGSE_Sheet")  'Sheet
+    'recherhe le N° de planche maxi
+    NoTotSheet = MaxSheet(TableCompile, Tmp_SiteAB)
 
-'Création de la ligne N°1 (Ligne de l'assemblage) et des lignes N°1 des Sym ou des variantes
+    'Création de la ligne N°1 (Ligne de l'assemblage) et des lignes N°1 des Sym ou des variantes
     For i = 0 To NbColPlus
         'Récupération de la désignation et du poids du product à détailler dans les paramètre du Product de tète
         ReDim Preserve TablNomProduct(NbColPlus + 9, Boucle)
@@ -332,7 +334,7 @@ ReDim ListParamProd(UBound(ListProd), 3)
         If Tmp_SiteAB = "Allemand" Then
             TablNomProduct(NbColPlus + 1, Boucle) = "" ' pas de N° de planche
         Else
-            TablNomProduct(NbColPlus + 1, Boucle) = TNP_NoSheet 'Sheet
+            TablNomProduct(NbColPlus + 1, Boucle) = NoSheetEG 'Sheet
         End If
         TablNomProduct(NbColPlus + 2, Boucle) = "" 'Item Nbr
         TablNomProduct(NbColPlus + 3, Boucle) = Left(ListParamProd(i, 0), InStr(ListParamProd(i, 0), ".") - 1) 'Part Nbr
@@ -357,14 +359,14 @@ ReDim ListParamProd(UBound(ListProd), 3)
         Boucle = Boucle + 1
     Next i
     
-'Ajout d'une ligne vide
+    'Ajout d'une ligne vide
     ReDim Preserve TablNomProduct(NbColPlus + 9, Boucle)
     For i = 0 To 9 + NbColPlus
         TablNomProduct(i, Boucle) = ""
     Next i
     Boucle = Boucle + 1
    
-'ajout des lignes compilées a la table
+    'ajout des lignes compilées a la table
     For i = 0 To UBound(TableCompile, 2)
         ReDim Preserve TablNomProduct(NbColPlus + 9, Boucle)
         For j = 0 To NbColPlus + 9
@@ -372,15 +374,11 @@ ReDim ListParamProd(UBound(ListProd), 3)
         Next j
         Boucle = Boucle + 1
     Next i
-
-'Si c'est le Product de l'outillage, traite les lignes User Guide et caisse
+            
+    'Si c'est le Product de l'outillage, traite les lignes User Guide et caisse
     If TypeElement(TNP_Product.Name, TypeNum) = 1 Then
     
         'Récupération des attributs concernant la caisse et le Userguide dans le product général
-        Dim ProductGenParams As Parameters
-        Dim Param_PG_PresCaisse As StrParam
-        Dim Param_PG_NoCaisse As StrParam
-        Dim Param_PresUserGuide As StrParam
         Set ProductGenParams = ProductGenProd.UserRefProperties
         
         'Détection et ajout de userGuide
@@ -421,9 +419,9 @@ ReDim ListParamProd(UBound(ListProd), 3)
             Do While Not LigneNomTempo = Temp_NoCaisse And NoEndNom <= 2
                 LigActive = LigActive + 1
                 'On recherche dans la colone 4 (PartNumber)
-                LigneNomTempo = Right(objWorkBook.ActiveSheet.cells(LigActive, 4).Value, Len(Temp_NoCaisse))
+                LigneNomTempo = Right(objWorkBook.activeSheet.cells(LigActive, 4).Value, Len(Temp_NoCaisse))
                 'Si 2 lignes vides consecutive => EOF du fichier excel
-                If objWorkBook.ActiveSheet.cells(LigActive, 1).Value = "" Then
+                If objWorkBook.activeSheet.cells(LigActive, 1).Value = "" Then
                     NoEndNom = NoEndNom + 1
                 Else
                     NoEndNom = 0
@@ -432,16 +430,16 @@ ReDim ListParamProd(UBound(ListProd), 3)
             If NoEndNom <= 2 Then ' l'EOF n'a pas été atteint, la ligne de la caisse à été trouvée
                 NBLigneTablNomProd = UBound(TablNomProduct(), 2) + 1
                 ReDim Preserve TablNomProduct(NbColPlus + 9, NBLigneTablNomProd)
-                TablNomProduct(NbColPlus + 0, NBLigneTablNomProd) = objWorkBook.ActiveSheet.cells(LigActive, 1).Value 'Qte
-                TablNomProduct(NbColPlus + 1, NBLigneTablNomProd) = FormatNoSheet(CStr(objWorkBook.ActiveSheet.cells(LigActive, 2).Value), Tmp_SiteAB) 'Sheet
-                TablNomProduct(NbColPlus + 2, NBLigneTablNomProd) = Txt3Digit(objWorkBook.ActiveSheet.cells(LigActive, 3).Value) 'Item Nbr
-                TablNomProduct(NbColPlus + 3, NBLigneTablNomProd) = SautLigne(objWorkBook.ActiveSheet.cells(LigActive, 4).Value) 'Part Nbr
-                TablNomProduct(NbColPlus + 4, NBLigneTablNomProd) = SautLigne(objWorkBook.ActiveSheet.cells(LigActive, 6).Value) 'Description
-                TablNomProduct(NbColPlus + 5, NBLigneTablNomProd) = SautLigne(objWorkBook.ActiveSheet.cells(LigActive, 7).Value) 'Dimension
-                TablNomProduct(NbColPlus + 6, NBLigneTablNomProd) = SautLigne(VigPt(objWorkBook.ActiveSheet.cells(LigActive, 8).Value)) 'Material
-                TablNomProduct(NbColPlus + 7, NBLigneTablNomProd) = SautLigne(objWorkBook.ActiveSheet.cells(LigActive, 9).Value) 'Protect
-                TablNomProduct(NbColPlus + 8, NBLigneTablNomProd) = SautLigne(objWorkBook.ActiveSheet.cells(LigActive, 10).Value) 'Miscellaneous
-                TablNomProduct(NbColPlus + 9, NBLigneTablNomProd) = objWorkBook.ActiveSheet.cells(LigActive, 11).Value 'Weights
+                TablNomProduct(NbColPlus + 0, NBLigneTablNomProd) = objWorkBook.activeSheet.cells(LigActive, 1).Value 'Qte
+                TablNomProduct(NbColPlus + 1, NBLigneTablNomProd) = FormatNoSheet(CStr(objWorkBook.activeSheet.cells(LigActive, 2).Value), Tmp_SiteAB) 'Sheet
+                TablNomProduct(NbColPlus + 2, NBLigneTablNomProd) = Txt3Digit(objWorkBook.activeSheet.cells(LigActive, 3).Value) 'Item Nbr
+                TablNomProduct(NbColPlus + 3, NBLigneTablNomProd) = SautLigne(objWorkBook.activeSheet.cells(LigActive, 4).Value) 'Part Nbr
+                TablNomProduct(NbColPlus + 4, NBLigneTablNomProd) = SautLigne(objWorkBook.activeSheet.cells(LigActive, 6).Value) 'Description
+                TablNomProduct(NbColPlus + 5, NBLigneTablNomProd) = SautLigne(objWorkBook.activeSheet.cells(LigActive, 7).Value) 'Dimension
+                TablNomProduct(NbColPlus + 6, NBLigneTablNomProd) = SautLigne(VigPt(objWorkBook.activeSheet.cells(LigActive, 8).Value)) 'Material
+                TablNomProduct(NbColPlus + 7, NBLigneTablNomProd) = SautLigne(objWorkBook.activeSheet.cells(LigActive, 9).Value) 'Protect
+                TablNomProduct(NbColPlus + 8, NBLigneTablNomProd) = SautLigne(objWorkBook.activeSheet.cells(LigActive, 10).Value) 'Miscellaneous
+                TablNomProduct(NbColPlus + 9, NBLigneTablNomProd) = objWorkBook.activeSheet.cells(LigActive, 11).Value 'Weights
             End If
         End If
         
@@ -466,7 +464,7 @@ ReDim ListParamProd(UBound(ListProd), 3)
     End If
 
 'Calcule des Cage Code
-    ListCageCode() = CageCode(objWorkBook.ActiveSheet, 10, TypeNum)
+    ListCageCode() = CageCode(objWorkBook.activeSheet, 10, TypeNum)
     
 'Fermeture du fichier excel
     objWorkBook.Close
@@ -483,7 +481,7 @@ ReDim ListParamProd(UBound(ListProd), 3)
     Dim Coll_Calques As DrawingSheets
     Set Coll_Calques = DrawActif.Sheets
     Dim CalqueActif As DrawingSheet
-    Set CalqueActif = DrawActif.Sheets.ActiveSheet
+    Set CalqueActif = DrawActif.Sheets.activeSheet
     Dim Coll_Vues As DrawingViews
     Set Coll_Vues = CalqueActif.Views
     Dim Vue_Back As DrawingView
@@ -513,12 +511,15 @@ ReDim ListParamProd(UBound(ListProd), 3)
     Dim Item
     For Each Item In Vue_Back.Texts
         If Item.Name = "Texte.sheet" Then
-            Item.Text = TNP_NoSheet
+            If NoSheetEG = "01" Then
+                Item.Text = NoSheetEG & "/" & NoTotSheet
+            Else
+                Item.Text = NoSheetEG
+            Else
         End If
     Next
     
 'Recupération du tableau de nomenclature dans le drawing
-    Dim Coll_Tables As DrawingTables
     Set Coll_Tables = Vue_Back.Tables
     Dim TablNom2D, TablTitres As DrawingTable
     For i = 1 To 2
@@ -564,7 +565,7 @@ ReDim ListParamProd(UBound(ListProd), 3)
     ProgressBar (10 + (90 / (NBLigneTablNomProd) * SupDivZero(i)))
         For j = 1 To NbColPlus + 10
                 If j = 2 + NbColPlus Then 'N° de planche active pour les éléments du commerce
-                    Tmp_NoSheet = NoSheetSupplier(TablNomProduct(j, NBLigneTablNomProd + 1 - i), TablNomProduct(j - 1, NBLigneTablNomProd + 1 - i), TNP_NoSheet, TypeNum)
+                    Tmp_NoSheet = NoSheetSupplier(TablNomProduct(j, NBLigneTablNomProd + 1 - i), TablNomProduct(j - 1, NBLigneTablNomProd + 1 - i), NoSheetEG, TypeNum)
                     TablNom2D.SetCellString i, j, Tmp_NoSheet
                 Else
                     tmp_Value = TablNomProduct(j - 1, NBLigneTablNomProd + 1 - i)
@@ -734,7 +735,7 @@ Public Sub TraceNom2DPart(TN2P_ListPart() As String)
     Dim TN2P_Drawing As DrawingDocument
     Set TN2P_Drawing = CATIA.ActiveDocument
     Dim TN2P_Calque As DrawingSheet
-    Set TN2P_Calque = TN2P_Drawing.Sheets.ActiveSheet
+    Set TN2P_Calque = TN2P_Drawing.Sheets.activeSheet
     Dim TN2P_Vues As DrawingViews
     Set TN2P_Vues = TN2P_Calque.Views
     Dim TN2P_Vue As DrawingView
@@ -844,7 +845,6 @@ Next
     
 'Maj du numero de planche
     Dim Item
-    Dim TNP_NoSheet As String
         For Each Item In TN2P_Vue.Texts
             If Item.Name = "Texte.sheet" Then
                 Item.Text = Param_Sheet.Value
@@ -882,9 +882,9 @@ Dim NoEns As Integer
         Do While Not CN_LigneTemp = NomEns And NoEndNom <= 2
             CN_LigActive = CN_LigActive + 1
             'On recherche dans la colone 1 (Nomenclature de xxxx)
-            CN_LigneTemp = Right(CN_Workbook.ActiveSheet.cells(CN_LigActive, 1).Value, Len(NomEns))
+            CN_LigneTemp = Right(CN_Workbook.activeSheet.cells(CN_LigActive, 1).Value, Len(NomEns))
             'Si 2 lignes vides consecutive => EOF du fichier excel
-            If CN_Workbook.ActiveSheet.cells(CN_LigActive, 1).Value = "" Then
+            If CN_Workbook.activeSheet.cells(CN_LigActive, 1).Value = "" Then
                 NoEndNom = NoEndNom + 1
             Else
                 NoEndNom = 0
@@ -893,26 +893,26 @@ Dim NoEns As Integer
         CN_LigActive = CN_LigActive + 2 'saut des entètes
         
         'Ajout des lignes de nomenclature
-        Do While Not CN_Workbook.ActiveSheet.cells(CN_LigActive, 1).Value = ""
+        Do While Not CN_Workbook.activeSheet.cells(CN_LigActive, 1).Value = ""
         
             ReDim Preserve CN_TableauNom(10, NewLine)
-            CN_TableauNom(0, NewLine) = CN_Workbook.ActiveSheet.cells(CN_LigActive, 1).Value 'Qte
-            CN_TableauNom(1, NewLine) = FormatNoSheet(CStr(CN_Workbook.ActiveSheet.cells(CN_LigActive, 2).Value), CN_SiteAB) 'Sheet
-            CN_TableauNom(2, NewLine) = Txt3Digit(CN_Workbook.ActiveSheet.cells(CN_LigActive, 3).Value) 'Item Nbr
-            CN_TableauNom(3, NewLine) = SautLigne(CN_Workbook.ActiveSheet.cells(CN_LigActive, 5).Value) 'Part Nbr
-            CN_TableauNom(4, NewLine) = SautLigne(CN_Workbook.ActiveSheet.cells(CN_LigActive, 6).Value) 'Description
+            CN_TableauNom(0, NewLine) = CN_Workbook.activeSheet.cells(CN_LigActive, 1).Value 'Qte
+            CN_TableauNom(1, NewLine) = FormatNoSheet(CStr(CN_Workbook.activeSheet.cells(CN_LigActive, 2).Value), CN_SiteAB) 'Sheet
+            CN_TableauNom(2, NewLine) = Txt3Digit(CN_Workbook.activeSheet.cells(CN_LigActive, 3).Value) 'Item Nbr
+            CN_TableauNom(3, NewLine) = SautLigne(CN_Workbook.activeSheet.cells(CN_LigActive, 5).Value) 'Part Nbr
+            CN_TableauNom(4, NewLine) = SautLigne(CN_Workbook.activeSheet.cells(CN_LigActive, 6).Value) 'Description
             'cas des mécano soudés
-            If CN_MecanoSoude = "OUI" Or TypeElement(CN_Workbook.ActiveSheet.cells(CN_LigActive, 4).Value, TypeNum) = 9 Then
-                CN_TableauNom(5, NewLine) = SautLigne(CN_Workbook.ActiveSheet.cells(CN_LigActive, 7).Value) 'Dimension
-                CN_TableauNom(6, NewLine) = SautLigne(VigPt(CN_Workbook.ActiveSheet.cells(CN_LigActive, 8).Value)) 'Material
-                CN_TableauNom(7, NewLine) = SautLigne(CN_Workbook.ActiveSheet.cells(CN_LigActive, 9).Value) 'Protect
+            If CN_MecanoSoude = "OUI" Or TypeElement(CN_Workbook.activeSheet.cells(CN_LigActive, 4).Value, TypeNum) = 9 Then
+                CN_TableauNom(5, NewLine) = SautLigne(CN_Workbook.activeSheet.cells(CN_LigActive, 7).Value) 'Dimension
+                CN_TableauNom(6, NewLine) = SautLigne(VigPt(CN_Workbook.activeSheet.cells(CN_LigActive, 8).Value)) 'Material
+                CN_TableauNom(7, NewLine) = SautLigne(CN_Workbook.activeSheet.cells(CN_LigActive, 9).Value) 'Protect
             Else
                 CN_TableauNom(5, NewLine) = "" 'Dimension
                 CN_TableauNom(6, NewLine) = "" 'Material"
                 CN_TableauNom(7, NewLine) = "" 'Protect
             End If
-                CN_TableauNom(8, NewLine) = SautLigne(CN_Workbook.ActiveSheet.cells(CN_LigActive, 10).Value) 'Miscellaneous
-                CN_TableauNom(9, NewLine) = CN_Workbook.ActiveSheet.cells(CN_LigActive, 11).Value 'Weights
+                CN_TableauNom(8, NewLine) = SautLigne(CN_Workbook.activeSheet.cells(CN_LigActive, 10).Value) 'Miscellaneous
+                CN_TableauNom(9, NewLine) = CN_Workbook.activeSheet.cells(CN_LigActive, 11).Value 'Weights
                 CN_TableauNom(10, NewLine) = NoEns
             NewLine = NewLine + 1
             CN_LigActive = CN_LigActive + 1
@@ -982,4 +982,18 @@ Dim tmp As String
 CompileNom = CN_TableauCompil()
 End Function
 
-
+Private Function MaxSheet(mTable, SiteAB As String) As String
+'Renvoi le N° de la planche maxi
+Dim SheetMax As Integer
+Dim i As Long
+    
+    MaxSheet = 0
+    For i = 0 To UBound(mTable, 2)
+        If IsNumeric(mTable(1, i)) Then
+            If CInt(mTable(1, i)) > MaxSheet Then
+                SheetMax = CInt(mTable(1, i))
+            End If
+        End If
+    Next
+    MaxSheet = FormatNoSheet(CStr(SheetMax), SiteAB)
+End Function

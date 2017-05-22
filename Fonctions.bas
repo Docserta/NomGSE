@@ -151,7 +151,8 @@ Public Function TypeElementFlx(TEF_Number As String) As Boolean
 'Renvois vrai ou faux en fonction de la présence ou non de "FLXxx" a la fin du numéro du product
 'ou du part passé en argument
     TypeElementFlx = False
-    If Mid(TEF_Number, Len(TEF_Number) - 4, 3) = "FLX" Then
+    'If Mid(TEF_Number, Len(TEF_Number) - 4, 3) = "FLX" Then
+    If Mid(TEF_Number, Len(TEF_Number) - 5, 3) = "-FLX" Then
         TypeElementFlx = True
     End If
 End Function
@@ -952,14 +953,14 @@ Dim LigActive As Long, LigActiveTab As Long
     LigActive = 0
     
 'Construit la liste des Cages codes
-    While objWorkbookCode.ActiveSheet.cells(LigActive + 1, 1).Value <> ""
+    While objWorkbookCode.activeSheet.cells(LigActive + 1, 1).Value <> ""
         LigActive = LigActive + 1
         ReDim Preserve ListCageCode(1, LigActive)
-        ListCageCode(0, LigActive) = objWorkbookCode.ActiveSheet.cells(LigActive, 1).Value
-        If objWorkbookCode.ActiveSheet.cells(LigActive, 2).Value = "" Then
+        ListCageCode(0, LigActive) = objWorkbookCode.activeSheet.cells(LigActive, 1).Value
+        If objWorkbookCode.activeSheet.cells(LigActive, 2).Value = "" Then
             ListCageCode(1, LigActive) = "XXXXXXXXXXXXXX"
         Else
-            ListCageCode(1, LigActive) = objWorkbookCode.ActiveSheet.cells(LigActive, 2).Value
+            ListCageCode(1, LigActive) = objWorkbookCode.activeSheet.cells(LigActive, 2).Value
         End If
         
     Wend
@@ -1022,7 +1023,7 @@ Dim NoLigne As Integer, Nb_Lig_Vide As Integer
     NoLigne = 1
     Nb_Lig_Vide = 0
     While Nb_Lig_Vide < 2
-        If NDL_TablExcel.ActiveSheet.cells(NoLigne, 1).Value = "" Then
+        If NDL_TablExcel.activeSheet.cells(NoLigne, 1).Value = "" Then
             Nb_Lig_Vide = Nb_Lig_Vide + 1
         Else
             Nb_Lig_Vide = 0
@@ -1043,7 +1044,7 @@ Public Function NoDebRecap(NDR_TablExcel As Variant, langue As String) As Intege
     ElseIf lange = "FR" Then
         NomSeparateur = "Récapitulatif sur"
     End If
-    While Left(NDR_TablExcel.ActiveSheet.cells(NoLigne, 1).Value, Len(NomSeparateur)) <> NomSeparateur
+    While Left(NDR_TablExcel.activeSheet.cells(NoLigne, 1).Value, Len(NomSeparateur)) <> NomSeparateur
         NoLigne = NoLigne + 1
     Wend
     NoDebRecap = NoLigne
@@ -1098,8 +1099,8 @@ Public Function NomMachine(NM_TablExcel As Variant, NM_NoDerniereLigne As Long, 
     End If
 Dim NM_NoLigne As Integer
     For NM_NoLigne = NM_NoDerniereLigne To 1 Step -1
-        If Left(NM_TablExcel.ActiveSheet.cells(NM_NoLigne, 1).Value, Len(NomSeparateur)) = NomSeparateur Then
-            NomMachine = Right(NM_TablExcel.ActiveSheet.cells(NM_NoLigne, 1).Value, Len(NM_TablExcel.ActiveSheet.cells(NM_NoLigne, 1).Value) - Len(NomSeparateur))
+        If Left(NM_TablExcel.activeSheet.cells(NM_NoLigne, 1).Value, Len(NomSeparateur)) = NomSeparateur Then
+            NomMachine = Right(NM_TablExcel.activeSheet.cells(NM_NoLigne, 1).Value, Len(NM_TablExcel.activeSheet.cells(NM_NoLigne, 1).Value) - Len(NomSeparateur))
             Exit Function
         End If
     Next

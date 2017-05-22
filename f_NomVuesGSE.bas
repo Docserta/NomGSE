@@ -7,55 +7,30 @@ Sub catmain()
 'modification du 15/02.01 ==> suppression soulignement et italique. ajout "Section" aux sections
 '                             Taille echelles 5 ald 3.5
 'modification de 25/11/15 ==> Ajout d'un formulaire avec la liste des echelles
+'modification du 18/05/17 ==> Mise à jour due l'échelle dans le cartouche
 
 'Log l'utilisation de la macro
 LogUtilMacro nPath, nFicLog, nMacro, "f_NomVuesGSE", VMacro
 
 Dim DocActif As DrawingDocument
-Set DocActif = CATIA.ActiveDocument
-
 Dim Col_Calques As DrawingSheets
-Set Col_Calques = DocActif.Sheets
-
 Dim CalqueActif As DrawingSheet
-Set CalqueActif = Col_Calques.ActiveSheet
 Dim NomCalqueActif As String
-NomCalqueActif = CalqueActif.Name
-
 Dim Col_Vues As DrawingViews
-Set Col_Vues = CalqueActif.Views
 Dim EchelleCalqueActif As Double
-EchelleCalqueActif = CalqueActif.Scale
-
 Dim VueActive As DrawingView, BackVue As DrawingView
 Dim NomVueActive As String, NewViewName As String
 Dim ViewName As String, ViewIdent As String, VewSuffix As String
 Dim NewTreeViewName As String, NewTreeViewIdent As String, NewTreeVewSuffix As String
-
-Set BackVue = Col_Vues.Item("Background View")
-
 Dim Col_Textes As DrawingTexts
-
-'paramètres de texte
-Const iFontSize As Integer = 8
-Const iFontSizeScale As Integer = 5
-Const iFontBold As Integer = 0
-Const iFontBoldScale As Integer = 0
-Const iFontUnderline As Integer = 0
-Const iFontUnderlineScale As Integer = 0
-Const iFontItalic As Integer = 0
-Const iFontItalicScale As Integer = 0
-
- Dim i As Long
- 
-'Facteur d'échelle de la vue principale
+Dim TxtNomVue As DrawingText
 Dim iScaleVuePrincipale As Double
-Load frm_Echelles
-frm_Echelles.Show
-iScaleVuePrincipale = ConvertScale(frm_Echelles.CBL_Echelles.Value)
-'iScaleVuePrincipale = InputBox("Qu'elle est l'échelle de la vue principale ? (ex: 1; 2, 0.5) :", "Echelle vue principale")
-Unload frm_Echelles
-
+Dim i As Long, j As Long
+Dim Deb As Integer, Fin As Integer
+Dim FormatNomVue As Boolean, FormatScaleVue As Boolean, PasDeTexte As Boolean
+Dim NotaUnfold_Y As Double, NotaUnfold_X As Double
+Dim Notatxt As String
+Dim TxtNota As DrawingText
 'Nom des type de vues en fonction de la langue
 Dim ANameVueF As String, ANameVueD As String, ANameVueG As String, ANameVueH As String, ANameVueB As String
 Dim ANameSection As String, ANameCoupe As String, ANameDetail As String, ANameVueAux As String, ANameVueIso As String
@@ -63,6 +38,23 @@ Dim ANameVueDep As String
 Dim FNameVueF As String, FNameVueD As String, FNameVueG As String, FNameVueH As String, FNameVueB As String
 Dim FNameSection As String, FNameCoupe As String, FNameDetail As String, FNameVueAux As String, FNameVueIso As String
 Dim FNameVueDep As String
+
+    'Initialisation des variables
+    Set DocActif = CATIA.ActiveDocument
+    Set Col_Calques = DocActif.Sheets
+    Set CalqueActif = Col_Calques.ActiveSheet
+    NomCalqueActif = CalqueActif.Name
+    Set Col_Vues = CalqueActif.Views
+    EchelleCalqueActif = CalqueActif.Scale
+
+    Set BackVue = Col_Vues.Item("Background View") 'Calque de fond
+
+    'Facteur d'échelle de la vue principale
+    Load frm_Echelles
+    frm_Echelles.Show
+    iScaleVuePrincipale = ConvertScale(frm_Echelles.CBL_Echelles.Value)
+    'iScaleVuePrincipale = InputBox("Qu'elle est l'échelle de la vue principale ? (ex: 1; 2, 0.5) :", "Echelle vue principale")
+    Unload frm_Echelles
 
 'Anglais
     ANameVueF = "Front view"
@@ -90,10 +82,7 @@ Dim FNameVueDep As String
     FNameVueIso = "Vue isométrique"
     FNameVueDep = "Vue dépliée"
 
-Dim Deb, Fin As Integer
-Dim FormatNomVue, FormatScaleVue, PasDeTexte As Boolean
-
-For i = 3 To Col_Vues.Count
+For i = 3 To Col_Vues.Count 'On elimine les 2 premières vues (main view et background view)
     Set VueActive = Col_Vues.Item(i)
     Set Col_Textes = VueActive.Texts
     FormatNomVue = False
@@ -106,6 +95,16 @@ For i = 3 To Col_Vues.Count
     VueActive.GetViewName ViewName, ViewIdent, VewSuffix
     If Col_Textes.Count = 0 Then
         PasDeTexte = True
+    Else
+        'Recheche le texte correspondant au nom de la vue
+        'For j = 1 To Col_Textes.Count
+        '    If InStr(1, UCase(Col_Textes.Item(j).Text), UCase(ViewName), vbTextCompare) > 0 Then
+        '        Set TxtNomVue = Col_Textes.Item(j)
+        '    End If
+        'Next j
+        'If TxtNomVue Is Nothing Then
+            Set TxtNomVue = Col_Textes.Item(1)
+        'End If
     End If
     
     'Vue principales et dérivées Anglais
@@ -223,23 +222,6 @@ For i = 3 To Col_Vues.Count
     ElseIf Left(NomVueActive, Len(ANameVueDep)) = ANameVueDep Or Left(NomVueActive, Len(FNameVueDep)) = FNameVueDep Then
         
         'Recherche du format du calque et paramétrage de la position du tableau
-        Dim CalqueActifPaperSize As String
-        CalqueActifPaperSize = CalqueActif.PaperName
-        Dim Dim_Calque_X, Dim_Calque_Y As Integer
-        If CalqueActifPaperSize = "A0 ISO" Then
-            Dim_Calque_X = 1189
-            Dim_Calque_Y = 841
-        ElseIf CalqueActifPaperSize = "A1 ISO" Then
-            Dim_Calque_X = 841
-            Dim_Calque_Y = 594
-        ElseIf CalqueActifPaperSize = "A2 ISO" Then
-            Dim_Calque_X = 594
-            Dim_Calque_Y = 420
-        ElseIf CalqueActifPaperSize = "A3 ISO" Then
-            Dim_Calque_X = 420
-            Dim_Calque_Y = 297
-        End If
-        
         If VueActive.Scale = iScaleVuePrincipale Then
             NewViewName = "UNFOLDED VIEW"
         Else
@@ -248,19 +230,15 @@ For i = 3 To Col_Vues.Count
         End If
         FormatNomVue = True
         NewTreeViewName = "UNFOLDED VIEW"
-        'Ajout nota
         
-        Dim NotaUnfold_Y As Double
-            NotaUnfold_Y = 160
-        Dim NotaUnfold_X As Double
-            NotaUnfold_X = Dim_Calque_X - 420
-        Dim Notatxt As String
-            Notatxt = "NOTE:" & Chr(10) & " BEND ALLOWANCE NOT CALCULATED ON UNFOLDED VIEW"
-        Dim TxtNota As DrawingText
-            Set TxtNota = BackVue.Texts.Add(Notatxt, NotaUnfold_X, NotaUnfold_Y)
-            TxtNota.SetFontSize 0, 0, 5
-            TxtNota.SetFontSize 1, 5, 8
-            TxtNota.Name = "TxtNota"
+        'Ajout nota
+        NotaUnfold_Y = 160
+        NotaUnfold_X = DimCalqueX(CalqueActif.PaperName) - 420
+        Notatxt = "NOTE:" & Chr(10) & " BEND ALLOWANCE NOT CALCULATED ON UNFOLDED VIEW"
+        Set TxtNota = BackVue.Texts.Add(Notatxt, NotaUnfold_X, NotaUnfold_Y)
+        TxtNota.SetFontSize 0, 0, 5
+        TxtNota.SetFontSize 1, 5, 8
+        TxtNota.Name = "TxtNota"
    
     Else
         PasDeTexte = True
@@ -268,12 +246,19 @@ For i = 3 To Col_Vues.Count
         
     'Mise en forme du texte
     If Not PasDeTexte Then
-        Col_Textes.Item(1).Text = NewViewName
+        'Col_Textes.Item(1).Text = NewViewName
+        TxtNomVue.Text = NewViewName
         Deb = InStr(1, NewViewName, "SCALE :")
         Fin = Len(NewViewName) - InStr(1, NewViewName, "SCALE :") + 1
-        Col_Textes.Item(1).TextProperties.Justification = catCenter
+        'Cour circuite la fonction de justification si le premier texte de la vue est un ballon
+        On Error Resume Next
+            'Col_Textes.Item(1).TextProperties.Justification = catCenter
+            TxtNomVue.TextProperties.Justification = catCenter
+        Err.Clear
+        On Error GoTo 0
         If FormatNomVue Then
-            With Col_Textes.Item(1)
+            'With Col_Textes.Item(1)
+            With TxtNomVue
                 .SetParameterOnSubString catItalic, 0, 0, iFontItalic
                 .SetParameterOnSubString catUnderline, 0, 0, iFontUnderline
                 .SetParameterOnSubString catBold, 0, 0, iFontBold
@@ -281,11 +266,11 @@ For i = 3 To Col_Vues.Count
                 .SetFontSize 0, 0, iFontSize
             End With
             VueActive.SetViewName NewTreeViewName, ViewIdent, ""
-            
-            
+                    
         End If
         If FormatScaleVue Then
-            With Col_Textes.Item(1)
+            'With Col_Textes.Item(1)
+            With TxtNomVue
                 .SetParameterOnSubString catItalic, Deb, Fin, iFontItalicScale
                 .SetParameterOnSubString catUnderline, Deb, Fin, iFontUnderlineScale
                 .SetParameterOnSubString catBold, Deb, Fin, iFontBoldScale
@@ -296,42 +281,116 @@ For i = 3 To Col_Vues.Count
     End If
 Next
 
+    'Mise à jour de l'echelle dans le cartouche
+    'MajEchCart BackVue.Texts, iScaleVuePrincipale
+    
 
 End Sub
 
-Public Function FormatScale(FSchaine As Double) As String
-'renvoi l'echelle au format x/x
-If FSchaine = 0.02 Then FormatScale = "1:50"
-If FSchaine = 0.05 Then FormatScale = "1:20"
-If FSchaine = 0.1 Then FormatScale = "1:10"
-If FSchaine = 0.2 Then FormatScale = "1:5"
-If FSchaine = 0.4 Then FormatScale = "2:5"
-If FSchaine = 0.5 Then FormatScale = "1:2"
-If FSchaine = 0.6 Then FormatScale = "3:5"
-If FSchaine = 1 Then FormatScale = "1:1"
-If FSchaine = 2 Then FormatScale = "2:1"
-If FSchaine = 2.5 Then FormatScale = "5:2"
-If FSchaine = 5 Then FormatScale = "5:1"
-If FSchaine = 10 Then FormatScale = "10:1"
-If FSchaine = 20 Then FormatScale = "20:1"
-If FSchaine = 50 Then FormatScale = "50:1"
+Private Sub MajEchCart(oVue As DrawingView, strEch As Double)
+'Met à jour le texte "Echelle" du cartouche
+Dim txtEch As DrawingText
+Dim Vuetxts As DrawingTexts
 
+    On Error Resume Next 'au cas ou le texte n'existerait pas
+    Set Vuetxts = oVue.Texts
+    Set txtEch = Vuetxts.GetItem("Texte.Scale")
+    txtEch.Text = FormatScale(strEch)
+
+    On Error GoTo 0
+End Sub
+Public Function FormatScale(dblEch As Double) As String
+'renvoi l'echelle au format x:x
+    Select Case dblEch
+        Case 0.02
+            FormatScale = "1:50"
+        Case 0.05
+            FormatScale = "1:20"
+        Case 0.1
+            FormatScale = "1:10"
+        Case 0.2
+            FormatScale = "1:5"
+        Case 0.4
+            FormatScale = "2:5"
+        Case 0.5
+            FormatScale = "1:2"
+        Case 0.6
+            FormatScale = "3:5"
+        Case 1
+            FormatScale = "1:1"
+        Case 2
+            FormatScale = "2:1"
+        Case 2.5
+            FormatScale = "5:2"
+        Case 5
+            FormatScale = "5:1"
+        Case 10
+            FormatScale = "10:1"
+        Case 20
+            FormatScale = "20:1"
+        Case 50
+            FormatScale = "50:1"
+    End Select
 End Function
 
-Public Function ConvertScale(CSChaine As String) As Double
+Public Function ConvertScale(strEch As String) As Double
 'Converti les format d'échelle fractionaires en multiplicateur
-If CSChaine = "1:50" Then ConvertScale = 0.02
-If CSChaine = "1:20" Then ConvertScale = 0.05
-If CSChaine = "1:10" Then ConvertScale = 0.1
-If CSChaine = "1:5" Then ConvertScale = 0.2
-If CSChaine = "2:5" Then ConvertScale = 0.4
-If CSChaine = "1:2" Then ConvertScale = 0.5
-If CSChaine = "3:5" Then ConvertScale = 0.6
-If CSChaine = "1:1" Then ConvertScale = 1
-If CSChaine = "2:1" Then ConvertScale = 2
-If CSChaine = "5:2" Then ConvertScale = 2.5
-If CSChaine = "5:1" Then ConvertScale = 5
-If CSChaine = "10:1" Then ConvertScale = 10
-If CSChaine = "20:1" Then ConvertScale = 20
-If CSChaine = "50:1" Then ConvertScale = 50
+    Select Case strEch
+        Case "1:50"
+            ConvertScale = 0.02
+        Case "1:20"
+            ConvertScale = 0.05
+        Case "1:10"
+            ConvertScale = 0.1
+        Case "1:5"
+            ConvertScale = 0.2
+        Case "2:5"
+            ConvertScale = 0.4
+        Case "1:2"
+            ConvertScale = 0.5
+        Case "3:5"
+            ConvertScale = 0.6
+        Case "1:1"
+            ConvertScale = 1
+        Case "2:1"
+            ConvertScale = 2
+        Case "5:2"
+            ConvertScale = 2.5
+        Case "5:1"
+            ConvertScale = 5
+        Case "10:1"
+            ConvertScale = 10
+        Case "20:1"
+            ConvertScale = 20
+        Case "50:1"
+            ConvertScale = 50
+    End Select
+End Function
+
+Private Function DimCalqueX(CalqueActifPaperSize As String) As Integer
+'Renvoi la dimension en X du calque
+    Select Case CalqueActifPaperSize
+        Case "A0 ISO"
+            DimCalqueX = 1189
+        Case "A1 ISO"
+            DimCalqueX = 841
+        Case "A2 ISO"
+            DimCalqueX = 594
+        Case "A3 ISO"
+            DimCalqueX = 420
+    End Select
+End Function
+
+Private Function DimCalqueY(CalqueActifPaperSize As String) As Integer
+'Renvoi la dimension en Y du calque
+    Select Case CalqueActifPaperSize
+        Case "A0 ISO"
+            DimCalqueY = 841
+        Case "A1 ISO"
+            DimCalqueY = 594
+        Case "A2 ISO"
+            DimCalqueY = 420
+        Case "A3 ISO"
+            DimCalqueY = 297
+    End Select
 End Function
