@@ -57,7 +57,7 @@ Property Let CK_OuvreDraw(CheminPlusNomFichier As String)
     'Ouvre le fichier Catdrawing
     Set CK_drawDoc = CK_CollDocs.Open(CheminPlusNomFichier)
     Set CK_Calques = CK_drawDoc.Sheets
-    Set CK_CalqueVue = CK_Calques.ActiveSheet
+    Set CK_CalqueVue = CK_Calques.activeSheet
     
     'Les calques
     Set CK_DrawingVues = CK_CalqueVue.Views
@@ -582,8 +582,12 @@ End Property
     Property Get CK_Echelle()
     'Vérifie qu'au moins une vue est a l'echelle spécifié dans le plan
     Dim Temp_DrawingVue As DrawingView
+    Dim i As Long
+    
     CK_Echelle = False
-    For Each Temp_DrawingVue In CK_DrawingVues
+    For i = 3 To CK_DrawingVues.Count
+    'For Each Temp_DrawingVue In CK_DrawingVues
+        Set Temp_DrawingVue = CK_DrawingVues.Item(i)
         If Temp_DrawingVue.Scale = Conv_Cart_Echelle Then
             CK_Echelle = True
         End If

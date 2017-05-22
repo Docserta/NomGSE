@@ -281,9 +281,10 @@ PA_NBrPRoducts = PA_Products.Count
         Set PA_Product = PA_Products.Item(i)
         PartExistinList = False
         TypElNum = CInt(Left(TypeElement(PA_Product.PartNumber, TypeNum), 1))
-        'Récupération du Numéro de Part (sans le FLXxx)
+        'Récupération du Numéro de Part (sans le -FLXxx)
         If TypeElementFlx(PA_Product.PartNumber) Then
-            PartNum = Left(PA_Product.PartNumber, Len(PA_Product.PartNumber) - 5)
+            'PartNum = Left(PA_Product.PartNumber, Len(PA_Product.PartNumber) - 5)
+            PartNum = Left(PA_Product.PartNumber, Len(PA_Product.PartNumber) - 6)
         Else
             PartNum = PA_Product.PartNumber
         End If

@@ -93,7 +93,7 @@ Dim mBarre As c_ProgressBarre
     mBarre.ProgressTitre 1, "Check 2D"
     mBarre.Affiche
 
-ReDim Liste_No_Planche(1, Frm_Check2D.LB_Liste_Fichiers_Traites.ListCount - 1)
+    ReDim Liste_No_Planche(1, Frm_Check2D.LB_Liste_Fichiers_Traites.ListCount - 1)
     'Pour tous les fichiers de la liste
     For i = 0 To Frm_Check2D.LB_Liste_Fichiers_Traites.ListCount - 1
         mBarre.Progression = ((100 / Frm_Check2D.LB_Liste_Fichiers_Traites.ListCount - 1) * i)
@@ -805,7 +805,7 @@ On Error GoTo Erreur
     If checkEC.CK_Echelle Then
         CouleurCell Wsheet, 1, LigneECParam, "vert"
     Else
-        Wsheet.Range("E" & LigneECParam) = "pas de vue à l'echelle indiquée dans le plan"
+        Wsheet.Range("E" & LigneECParam) = "pas de vue à l'echelle indiquée dans le plan. ou l'echelle indiquée n'est pas au bon format (1/1)"
         CouleurCell Wsheet, 1, LigneECParam, "rouge"
         CheckCart = False
     End If
